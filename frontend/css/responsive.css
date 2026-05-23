@@ -1,0 +1,28 @@
+@media(max-width:768px) {
+
+    header {
+        flex-direction: column;
+    }
+
+    nav ul {
+        flex-direction: column;
+        margin-top: 20px;
+    }
+
+    .hero-content h1 {
+        font-size: 35px;
+    }
+
+    .card-container {
+        flex-direction: column;
+    }
+
+    .gallery {
+        grid-template-columns: 1fr;
+    }
+
+    .booking-section form {
+        width: 100%;
+    }
+
+}
