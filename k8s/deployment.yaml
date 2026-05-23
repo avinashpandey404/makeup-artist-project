@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: backend-deployment
+  namespace: makeup-app
+
+spec:
+  replicas: 3
+
+  selector:
+    matchLabels:
+      app: backend
+
+  template:
+    metadata:
+      labels:
+        app: backend
+
+    spec:
+      containers:
+
+      - name: backend
+
+        image: YOUR_ECR_URI:latest
+
+        imagePullPolicy: Always
+
+        ports:
+        - containerPort: 5000
+
+        env:
+
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: makeup-config
+              key: DB_HOST
+
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: makeup-config
+              key: DB_NAME
+
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: makeup-config
+              key: DB_PORT
+
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: makeup-config
+              key: AWS_REGION
+
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: makeup-secret
+              key: DB_USER
+
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: makeup-secret
+              key: DB_PASSWORD
+
+        - name: SNS_TOPIC_ARN
+          valueFrom:
+            secretKeyRef:
+              name: makeup-secret
+              key: SNS_TOPIC_ARN
+
+        - name: SQS_QUEUE_URL
+          valueFrom:
+            secretKeyRef:
+              name: makeup-secret
+              key: SQS_QUEUE_URL
+
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+
+          initialDelaySeconds: 30
+          periodSeconds: 10
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+
+          initialDelaySeconds: 10
+          periodSeconds: 5
