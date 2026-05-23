@@ -1,0 +1,120 @@
+pipeline {
+
+    agent any
+
+    environment {
+
+        AWS_REGION = 'ap-south-1'
+
+        ECR_REPO = 'YOUR_ECR_URI'
+
+        IMAGE_NAME = 'makeup-backend'
+
+        IMAGE_TAG = 'latest'
+    }
+
+    stages {
+
+        stage('Clone Repository') {
+
+            steps {
+
+                git branch: 'main',
+                url: 'YOUR_GITHUB_REPO_URL'
+            }
+        }
+
+        stage('Verify Files') {
+
+            steps {
+
+                sh 'pwd'
+
+                sh 'ls -la'
+            }
+        }
+
+        stage('Build Docker Image') {
+
+            steps {
+
+                sh '''
+                docker build -t $IMAGE_NAME .
+                '''
+            }
+        }
+
+        stage('Tag Docker Image') {
+
+            steps {
+
+                sh '''
+                docker tag $IMAGE_NAME:$IMAGE_TAG \
+                $ECR_REPO:$IMAGE_TAG
+                '''
+            }
+        }
+
+        stage('Login To AWS ECR') {
+
+            steps {
+
+                sh '''
+                aws ecr get-login-password --region $AWS_REGION | \
+                docker login --username AWS --password-stdin $ECR_REPO
+                '''
+            }
+        }
+
+        stage('Push Docker Image') {
+
+            steps {
+
+                sh '''
+                docker push $ECR_REPO:$IMAGE_TAG
+                '''
+            }
+        }
+
+        stage('Deploy To EKS') {
+
+            steps {
+
+                sh '''
+                kubectl apply -f k8s/
+                '''
+            }
+        }
+
+        stage('Verify Deployment') {
+
+            steps {
+
+                sh '''
+                kubectl get pods -n makeup-app
+                '''
+
+                sh '''
+                kubectl get svc -n makeup-app
+                '''
+
+                sh '''
+                kubectl get ingress -n makeup-app
+                '''
+            }
+        }
+    }
+
+    post {
+
+        success {
+
+            echo 'Deployment Successful'
+        }
+
+        failure {
+
+            echo 'Pipeline Failed'
+        }
+    }
+}
