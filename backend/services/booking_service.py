@@ -1,69 +1,87 @@
-from database.db import get_connection
+from flask import jsonify
+from database.db import db
+from models.booking_model import Booking
+from services.sns_service import send_booking_confirmation
 
-from utils.logger import setup_logger
-
-import boto3
-import os
-
-logger = setup_logger()
-
-sns = boto3.client('sns', region_name=os.getenv("AWS_REGION"))
 
 def create_booking(data):
 
     try:
 
-        connection = get_connection()
+        name = data.get("name")
+        email = data.get("email")
+        phone = data.get("phone")
+        service = data.get("service")
+        appointment_date = data.get("appointment_date")
+        message = data.get("message")
 
-        cursor = connection.cursor()
+        # Validation
 
-        query = """
-        INSERT INTO bookings
-        (name, email, phone, booking_date, service)
-        VALUES (%s, %s, %s, %s, %s)
-        """
+        if not name:
+            return jsonify({
+                "error": "Name is required"
+            }), 400
 
-        values = (
-            data['name'],
-            data['email'],
-            data['phone'],
-            data['date'],
-            data['service']
+        if not email:
+            return jsonify({
+                "error": "Email is required"
+            }), 400
+
+        if not phone:
+            return jsonify({
+                "error": "Phone is required"
+            }), 400
+
+        if not service:
+            return jsonify({
+                "error": "Service is required"
+            }), 400
+
+        if not appointment_date:
+            return jsonify({
+                "error": "Appointment date is required"
+            }), 400
+
+        # Create Booking Object
+
+        new_booking = Booking(
+
+            name=name,
+            email=email,
+            phone=phone,
+            service=service,
+            appointment_date=appointment_date,
+            message=message
         )
 
-        cursor.execute(query, values)
+        # Save Into Database
 
-        connection.commit()
+        db.session.add(new_booking)
 
-        # SNS Notification
-        sns.publish(
-            TopicArn=os.getenv("SNS_TOPIC_ARN"),
-            Subject="New Booking",
-            Message=f"""
-            New Booking Received
+        db.session.commit()
 
-            Name: {data['name']}
-            Email: {data['email']}
-            Phone: {data['phone']}
-            Service: {data['service']}
-            """
-        )
+        # Send SNS Confirmation
 
-        logger.info("Booking created successfully")
+        send_booking_confirmation(name, phone)
 
-        return {
-            "message": "Booking created successfully"
-        }
+        return jsonify({
 
-    except Exception as e:
+            "success": True,
 
-        logger.error(str(e))
+            "message": "Appointment booked successfully"
 
-        return {
-            "error": str(e)
-        }
+        }), 201
 
-    finally:
+    except Exception as error:
 
-        cursor.close()
-        connection.close()
+        db.session.rollback()
+
+        print("BOOKING ERROR:", error)
+
+        return jsonify({
+
+            "success": False,
+
+            "error": str(error)
+
+        }), 500
